@@ -8,6 +8,12 @@ set(CMAKE_CUDA_ARCHITECTURES 86)
 add_compile_options(-Wno-deprecated-declarations)
 set(CMAKE_CXX_FLAGS "-g -O3 -MD -march=native")
 
+  message(STATUS "以静态模式编译")
+  set(OpenMP_CXX_FLAGS "-fopenmp")
+  set(OpenMP_CXX_LIB_NAMES "omp")
+  set(OpenMP_omp_LIBRARY "/usr/local/lib/libomp.a")
+  set(BUILD_SHARED_LIBS OFF)  # 只找静态库
+
 option(NOAVX512 "Disable AVX-512" OFF)
 option(NOAVX2 "Disable AVX2" OFF)
 if (NOAVX512)
@@ -90,6 +96,9 @@ target_link_libraries(spiral
     OpenSSL::SSL
     OpenSSL::Crypto
 )
+  # 链接OpenMP
+  find_package(OpenMP REQUIRED)
+  target_link_libraries(spiral PRIVATE OpenMP::OpenMP_CXX)
 
 add_compile_definitions(
     TEXP=$(TEXP)
