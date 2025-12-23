@@ -1,3 +1,0 @@
-/home/lo4u/workspace/GPIR-GPU/build/CMakeFiles/spiral.dir
-/home/lo4u/workspace/GPIR-GPU/build/CMakeFiles/edit_cache.dir
-/home/lo4u/workspace/GPIR-GPU/build/CMakeFiles/rebuild_cache.dir

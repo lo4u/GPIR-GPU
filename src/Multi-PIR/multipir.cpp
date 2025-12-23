@@ -140,9 +140,9 @@ void reBuildDB(
                                  j * (n0) + m;
                     B[idx] = BB[z];
                 }
-                // free(&bucket[i][(m * n2 + c) * coeff_count]);
             }
         }
+        // free(bucket[i]);
     }
     free(BB);
 }

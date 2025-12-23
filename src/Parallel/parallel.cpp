@@ -1,5 +1,6 @@
 #include "parallel.h"
 #include "opgpu.cuh"
+#include <filesystem>
 
 // client
 float time_set_constants = 0.0;
@@ -108,6 +109,8 @@ void loadDataBase(
     size_t further_dims, 
     size_t IDX_TARGET
 ) {
+    std::string fileName = "database_gened_" + std::to_string(num_expansions) + "_" + std::to_string(further_dims) + ".dat";
+
     size_t total_n = (1 << num_expansions) * (1 << further_dims);
     size_t dim0 = 1 << num_expansions; // 第一维度的总数
     size_t num_per = 1 << further_dims; // 数据库总数据量 / 第一维度
@@ -116,6 +119,17 @@ void loadDataBase(
     cout << "num_bytes_B: " << num_bytes_B << endl;
     DB_test = (uint64_t *)aligned_alloc(64, num_bytes_B);
     memset(DB_test, 0, num_bytes_B);
+    if (filesystem::exists(fileName)) {
+        cout << "Loading database from file..." << endl;
+        size_t len;
+        loadBinary(DB_test, len, fileName);
+        if (len != num_bytes_B / sizeof(uint64_t)) {
+            cout << "Database size mismatch!" << endl;
+            exit(1);
+        }
+        cout << "Database loaded." << endl;
+        return;
+    }
 
     uint64_t *BB = (uint64_t *)malloc(n0 * n2 * crt_count * poly_len * sizeof(uint64_t));
     size_t numBytesPlaintextRaw = n0 * n0 * num_bits_q * poly_len / 8;
@@ -174,6 +188,7 @@ void loadDataBase(
         }
     }
     free(BB);
+    saveBinary(DB_test, num_bytes_B / sizeof(uint64_t), fileName);
     cout << "done loading/generating db." << endl;
 }
 
@@ -711,6 +726,9 @@ void trival_test_single_pir_with_gpu(
         clock.duration_cpu<Timer::ms>("time_decode_respond");
         time_decode_respond = clock._timeElasped;
         printf("=================== 5. Client: Decrypt thr Response ... ok ===================\n");
+
+        printf("size_of_query is %ld\n", calculateMatPolySize(cv));
+        printf("size_of_response is %ld\n", calculateMatPolySize(r));
         
         // double log_var;
         // if (modswitch_on_server) {
@@ -875,15 +893,14 @@ void test_batch_pir_with_pbc_okvs_gpu(
     clock.stop_cpu();
     clock.duration_cpu<Timer::ms>("time_encode_db");
     time_encode_db = clock._timeElasped;
-    // free(B);
+    free(B);
 
     std::vector<uint64_t *> DBs(collections.size());
     size_t cLen = collections.size();
-    for (size_t i = 0 ; i < cLen ; i++) {
-        DBs[i] = NULL;
-        reBuildDB(DBs[i], godSizes[i].num_expansions, godSizes[i].further_dims, collections[i]);
-    }
-    // free(B);
+    // for (size_t i = 0 ; i < cLen ; i++) {
+    //     DBs[i] = NULL;
+    //     reBuildDB(DBs[i], godSizes[i].num_expansions, godSizes[i].further_dims, collections[i]);
+    // }
     printf("=================== 3. Server: PBC.Encode the DATABASE ... ok ===================\n");
     
     printf("=================== 4. Client: START to Build the Original Index Vector ===================\n");
@@ -954,6 +971,12 @@ void test_batch_pir_with_pbc_okvs_gpu(
     std::vector<MatPoly> rs(server_A.handles.size());
     size_t hLen = server_A.handles.size();
     for (size_t i = 0 ; i < hLen ; i++) {
+        reBuildDB(
+            server_A.handles[i].database,
+            godSizes[i].num_expansions,
+            godSizes[i].further_dims,
+            collections[i]
+        );
         server_A.handles[i].genQuery();
         rs[i] = AnswerParallel(
             server_A.handles[i].database,
@@ -968,6 +991,7 @@ void test_batch_pir_with_pbc_okvs_gpu(
         );
         time_respond = time_expand_query + time_reorient_ct + time_mul_db_with_query + time_fold_further_dim + time_convert_mod;
         time_batch_respond += time_respond;
+        free(server_A.handles[i].database);
     }
     float time_ave_batch_respond = (time_batch_respond + time_decompress_query) / hLen;
     printf("time_ave_batch_respond is %f\n", time_ave_batch_respond);
@@ -980,6 +1004,8 @@ void test_batch_pir_with_pbc_okvs_gpu(
     clock.duration_cpu<Timer::ms>("time_decode_respond");
     time_decode_respond = clock._timeElasped;
     printf("=================== 11. Client: Decrypt thr Response ... ok ===================\n");
+    printf("size_of_query is %ld\n", calculateMatPolySize(cvs_hat[0]) * cvs_hat.size());
+    printf("size_of_response is %ld\n", calculateMatPolySize(rs[0]) * rs.size());
     
     finishGPU();
     printf("=================== Test of Batch PIR with PBC, OCD and GPU ... ok ===================\n");   

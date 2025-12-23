@@ -1,4 +1,5 @@
 #include "3H_GCT.h"
+#include <chrono>
 
 class GCTObvKVStore
 {
@@ -141,3 +142,21 @@ void test_GCT_okvs(
     size_t num_expansions, 
     size_t further_dims
 );
+
+struct TestResult {
+  double compressTime; // 毫秒
+  double decompressTime; // 毫秒
+  double entireTime;    // 毫秒
+  double answerTime;    // 毫秒
+  size_t querySize;    // bytes
+  size_t responseSize;
+
+  void print() const {
+    std::cout << "Compress Time: " << compressTime << " milliseconds\n";
+    std::cout << "Decompress Time: " << decompressTime << " milliseconds\n";
+    std::cout << "Entire Time: " << entireTime << " milliseconds\n";
+    std::cout << "Answer Time: " << answerTime << " milliseconds\n";
+    std::cout << "Query Size: " << querySize << " bytes\n";
+    std::cout << "Response Size: " << responseSize << " bytes\n";
+  }
+};

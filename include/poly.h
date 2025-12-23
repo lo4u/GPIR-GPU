@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string>
+#include <stdexcept>
 
 #include <assert.h>
 
@@ -174,3 +175,93 @@ inline uint64_t reduction_u128_qq(uint64_t val) {
 }
 #endif
 
+// ---------------- 写入函数 ----------------
+inline void saveMatPolyVector(const std::vector<MatPoly>& vec, const std::string& filename) {
+    std::ofstream out(filename, std::ios::binary);
+    if (!out) {
+        throw std::runtime_error("Failed to open file for writing");
+    }
+
+    size_t vec_size = vec.size();
+    out.write(reinterpret_cast<const char*>(&vec_size), sizeof(vec_size));
+
+    for (const auto& mat : vec) {
+        out.write(reinterpret_cast<const char*>(&mat.rows), sizeof(mat.rows));
+        out.write(reinterpret_cast<const char*>(&mat.cols), sizeof(mat.cols));
+        out.write(reinterpret_cast<const char*>(&mat.isNTT), sizeof(mat.isNTT));
+
+        size_t factor = mat.isNTT ? crt_count : 1;
+        size_t data_len = mat.rows * mat.cols * poly_len * factor;
+
+        out.write(reinterpret_cast<const char*>(mat.data), data_len * sizeof(uint64_t));
+    }
+
+    out.close();
+}
+
+// ---------------- 读取函数 ----------------
+inline std::vector<MatPoly> loadMatPolyVector(const std::string& filename) {
+    std::ifstream in(filename, std::ios::binary);
+    if (!in) {
+        throw std::runtime_error("Failed to open file for reading");
+    }
+
+    size_t vec_size;
+    in.read(reinterpret_cast<char*>(&vec_size), sizeof(vec_size));
+
+    std::vector<MatPoly> vec(vec_size);
+
+    for (auto& mat : vec) {
+        in.read(reinterpret_cast<char*>(&mat.rows), sizeof(mat.rows));
+        in.read(reinterpret_cast<char*>(&mat.cols), sizeof(mat.cols));
+        in.read(reinterpret_cast<char*>(&mat.isNTT), sizeof(mat.isNTT));
+
+        size_t factor = mat.isNTT ? crt_count : 1;
+        size_t data_len = mat.rows * mat.cols * poly_len * factor;
+
+        mat.data = new uint64_t[data_len];
+        in.read(reinterpret_cast<char*>(mat.data), data_len * sizeof(uint64_t));
+    }
+
+    in.close();
+    return vec;
+}
+
+// ---------------- 写入二进制函数 ----------------
+// ptr: 指向数组的指针
+// length: 元素个数
+// filename: 输出文件名
+inline void saveBinary(const uint64_t* ptr, size_t length, const std::string& filename) {
+    std::ofstream out(filename, std::ios::binary);
+    if (!out) {
+        throw std::runtime_error("Failed to open file for writing");
+    }
+
+    // 写入元素个数（可选，用于读取时知道长度）
+    out.write(reinterpret_cast<const char*>(&length), sizeof(length));
+
+    // 写入数据
+    out.write(reinterpret_cast<const char*>(ptr), length * sizeof(uint64_t));
+    out.close();
+}
+
+// ---------------- 读取二进制函数 ----------------
+// 返回新分配的数组指针，length 会被设置为元素个数
+inline void loadBinary(uint64_t *ptr, size_t& length, const std::string& filename) {
+    std::ifstream in(filename, std::ios::binary);
+    if (!in) {
+        throw std::runtime_error("Failed to open file for reading");
+    }
+
+    // 先读取元素个数
+    in.read(reinterpret_cast<char*>(&length), sizeof(length));
+    in.read(reinterpret_cast<char*>(ptr), length * sizeof(uint64_t));
+    in.close();
+}
+
+// 计算一个多项式矩阵的大小,单位是字节
+inline size_t calculateMatPolySize(const MatPoly& mat) {
+    size_t factor = mat.isNTT ? crt_count : 1;
+    size_t data_len = mat.rows * mat.cols * poly_len * factor;
+    return sizeof(size_t) * 2 + data_len * sizeof(uint64_t) + sizeof(bool); // rows, cols, isNTT + data
+}

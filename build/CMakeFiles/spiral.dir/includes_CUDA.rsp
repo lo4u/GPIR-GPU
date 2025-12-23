@@ -1,1 +1,0 @@
--I"/home/lo4u/workspace/GPIR-GPU/include" -I/home/lo4u/vcpkg/installed -isystem "/usr/local/cuda-13/targets/x86_64-linux/include" -isystem "/home/lo4u/vcpkg/installed/x64-linux/include" -isystem "/home/lo4u/vcpkg/installed/x64-linux/include/cpu_features"

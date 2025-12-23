@@ -5,8 +5,8 @@ int main(int argc, char *argv[]) {
     size_t further_dims = 2; // v2
     size_t total_n = (1 << num_expansions) * (1 << further_dims);
 
-    size_t IDX_TARGET = 14;
-    size_t IDX_DIM0 = IDX_TARGET / (1 << further_dims);
+    size_t IDX_TARGET_or_num = 14;
+    size_t IDX_DIM0 = IDX_TARGET_or_num / (1 << further_dims);
 
 
     // cout << "======================ssssssssss======================\n";
@@ -16,7 +16,7 @@ int main(int argc, char *argv[]) {
 
     build_table();
 
-    // scratch = (uint64_t *)malloc(crt_count * poly_len * sizeof(uint64_t));
+    // // scratch = (uint64_t *)malloc(crt_count * poly_len * sizeof(uint64_t));
 
     ntt_qprime = new intel::hexl::NTT(2048, arb_qprime);
 
@@ -28,15 +28,21 @@ int main(int argc, char *argv[]) {
         num_expansions = strtol(argv[1], NULL, 10); // max = 7 //used to be 8
         further_dims = strtol(argv[2], NULL, 10);
         total_n = (1 << num_expansions) * (1 << further_dims);
-        IDX_TARGET = strtol(argv[3], NULL, 10);
-        IDX_DIM0 = IDX_TARGET / (1 << further_dims);
+        IDX_TARGET_or_num = strtol(argv[3], NULL, 10);
+        IDX_DIM0 = IDX_TARGET_or_num / (1 << further_dims);
     }
 
-    cout << "Start to test function GenRandVec" << endl;
-    std::vector<size_t> res = GenRandVec(0, 10, 11, 4);
-    for (size_t i = 0 ; i < res.size() ; i++) {
-        cout << i << ' ' << res[i] << endl;
+    if (strcmp(argv[4], "--single") == 0) {
+      trival_test_single_pir_with_gpu(num_expansions, further_dims, IDX_TARGET_or_num);
+    }  else if (strcmp(argv[4], "--batch") == 0) {
+      test_batch_pir_with_pbc_okvs_gpu(num_expansions, further_dims, IDX_TARGET_or_num);
     }
+
+    // cout << "Start to test function GenRandVec" << endl;
+    // std::vector<size_t> res = GenRandVec(0, 10, 11, 4);
+    // for (size_t i = 0 ; i < res.size() ; i++) {
+    //     cout << i << ' ' << res[i] << endl;
+    // }
 
     // cout << "Start to test homomorphic operation" << endl;
     // test_gaussian_elimination();
@@ -57,8 +63,8 @@ int main(int argc, char *argv[]) {
     // cout << "Start to test to use OCC" << endl;
     // test_mPIR_with_PBC_and_OCC(num_expansions, further_dims);
 
-    cout << "Start to test to do OKVS" << endl;
-    test_GCT_okvs(num_expansions, further_dims);
+    // cout << "Start to test to do OKVS" << endl;
+    // test_GCT_okvs(num_expansions, further_dims);
 
     // test_mPIR_with_PBC(num_expansions, further_dims);
     #endif

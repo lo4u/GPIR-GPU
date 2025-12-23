@@ -1,9 +1,13 @@
 #include "okvs.h"
+#include <chrono>
+#include <filesystem>
 
 void test_GCT_okvs(
     size_t num_expansions, 
     size_t further_dims
 ) {
+    TestResult testResult;
+
     do_MatPol_test();
 
     setup_constants();
@@ -20,9 +24,19 @@ void test_GCT_okvs(
     std::vector<size_t> IDX_TARGETs(16);
     std::iota(IDX_TARGETs.begin(), IDX_TARGETs.end(), 1);
 
-    genDataBase(B, num_expansions, further_dims, IDX_TARGETs);
+    if (std::filesystem::exists("./database")) {
+        size_t length;
+        loadBinary(B, length, "./database");
+        assert(length == (1 << num_expansions << further_dims) * n0 * n2 * poly_len);
+    } else {
+        size_t length = (1 << num_expansions << further_dims) * n0 * n2 * poly_len;
+        genDataBase(B, num_expansions, further_dims, IDX_TARGETs);
+        saveBinary(B, length, "./database");
+    }
 
     // print_DB(B, num_expansions, further_dims);
+
+    auto startEntire = std::chrono::high_resolution_clock::now();
 
     // 下面先进行一些准备工作
     // Both: 新建布谷鸟编码
@@ -90,23 +104,44 @@ void test_GCT_okvs(
 
     // Create OKVS class
     GCTObvKVStore client_OKVS(real_ind.size(), 3, 1.3, packed_pt_vec.size());
-
+    
+    auto startCompress = std::chrono::high_resolution_clock::now();
     // test: the correctness of OKVS
     auto pt_hat = client_OKVS.Encode(packed_pt_vec, real_ind);
+    auto endCompress = std::chrono::high_resolution_clock::now();
+    testResult.compressTime = std::chrono::duration<double, std::milli>(endCompress - startCompress).count();
 
     cout << "==============================" << endl;
 
     auto cvs_hat = client_A.MultiPackedIndexEncrypt(pt_hat); // In NTT
+    testResult.querySize = calculateMatPolySize(cvs_hat[0]) * cvs_hat.size();
+
+    auto startAnswer = std::chrono::high_resolution_clock::now();
 
     GCTObvKVStore server_OKVS(real_ind.size(), 3, 1.3, packed_pt_vec.size());
+
+    auto startDecompress = std::chrono::high_resolution_clock::now();
     auto cvs = server_OKVS.Decode(cvs_hat);
+    auto endDecompress = std::chrono::high_resolution_clock::now();
+    testResult.decompressTime = std::chrono::duration<double, std::milli>(endDecompress - startDecompress).count();
+
     cout << "==============================" << endl;
     MultiPirServer server_A(godSizes, DBs, cvs);
-    cout << cvs.size() << endl;
-    cout << server_A.handles.size() << endl;
+    // cout << cvs.size() << endl;
+    // cout << server_A.handles.size() << endl;
     std::vector<MatPoly> rs = server_A.MultiServerAnswer();
+
+    testResult.responseSize = calculateMatPolySize(rs[0]) * rs.size();
+
+    auto endAnswer = std::chrono::high_resolution_clock::now();
+    testResult.answerTime = std::chrono::duration<double, std::milli>(endAnswer - startAnswer).count();
+
     // cout << "==============================" << endl;
     std::vector<MatPoly> pts = client_A.MultiAnswerDecrypt(rs);
+
+    auto endEntire = std::chrono::high_resolution_clock::now();
+    testResult.entireTime = std::chrono::duration<double, std::milli>(endEntire - startEntire).count();
+
 
     for (size_t i = 0 ; i < DBs.size() ; i++) {
         if (indexes.find(i) != indexes.end()) {
@@ -123,6 +158,8 @@ void test_GCT_okvs(
             double log_var = check_relation(rs[i], modswitch_on_server, seq-1);
         }
     }
+
+    testResult.print();
 
     // test_trival_multi_PIR(B, num_expansions, further_dims, IDX_TARGETs);
 }

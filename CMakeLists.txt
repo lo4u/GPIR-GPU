@@ -3,7 +3,7 @@ project(spiral VERSION 0.1 LANGUAGES CXX CUDA)
 
 set(CMAKE_BUILD_TYPE "Release")
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CUDA_ARCHITECTURES 120)
+set(CMAKE_CUDA_ARCHITECTURES 86)
 
 add_compile_options(-Wno-deprecated-declarations)
 set(CMAKE_CXX_FLAGS "-g -O3 -MD -march=native")
@@ -82,6 +82,7 @@ endif()
 
 target_include_directories(spiral PUBLIC include)
 target_include_directories(spiral PUBLIC ~/vcpkg/installed/)
+target_include_directories(spiral PUBLIC /app/vcpkg/installed/)
 target_link_libraries(spiral
   PRIVATE
     CUDA::cudart
