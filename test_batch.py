@@ -5,46 +5,70 @@ import sys
 import os
 
 def run_spiral_command():
-    """运行 ./spiral 命令并捕获输出"""
+    """运行 ./spiral 命令，实时打印输出并捕获用于解析"""
     cmd = ["./spiral", "12", "8", "1024", "--batch"]
     print(f"Running command: {' '.join(cmd)} ...")
+    print("-" * 60) # 分割线，方便查看开始
+
+    captured_output = []
     
     try:
-        # capture_output=True 将标准输出捕获到 result.stdout
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        return result.stdout
-    except subprocess.CalledProcessError as e:
-        print(f"Error executing command: {e}")
-        print("Standard Error Output:", e.stderr)
-        sys.exit(1)
+        # 使用 Popen 建立管道，bufsize=1 表示行缓冲，text=True 表示处理文本
+        # stdout=subprocess.PIPE 用于捕获输出
+        # stderr=subprocess.STDOUT 将错误输出也合并到标准输出中
+        process = subprocess.Popen(
+            cmd, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.STDOUT, 
+            text=True, 
+            bufsize=1,
+            encoding='utf-8' # 显式指定编码，防止解码错误
+        )
+
+        # 实时逐行读取
+        for line in process.stdout:
+            # 1. 实时打印到终端 (这就让你能看到进度了)
+            sys.stdout.write(line)
+            sys.stdout.flush() 
+            
+            # 2. 同时存入列表供后续解析
+            captured_output.append(line)
+
+        # 等待进程结束
+        process.wait()
+
+        if process.returncode != 0:
+            print(f"\n[Error] Command failed with return code {process.returncode}")
+            sys.exit(process.returncode)
+
+        return "".join(captured_output)
+
     except FileNotFoundError:
         print("Error: Executable './spiral' not found in the current directory.")
+        sys.exit(1)
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
         sys.exit(1)
 
 def parse_log_data(log_content):
     """解析日志内容，对重复项求和，提取单项和大小"""
     
-    # 定义数据结构
     metrics = {
-        "single_times": {}, # 存储只出现一次的时间
-        "sum_times": {      # 存储需要累加的时间
+        "single_times": {},
+        "sum_times": {
             "time_expand_query": 0.0,
             "time_reorient_ct": 0.0,
             "time_mul_db_with_query": 0.0,
             "time_fold_further_dim": 0.0,
             "time_convert_mod": 0.0
         },
-        "sizes": {}         # 存储大小信息
+        "sizes": {}
     }
 
     # 正则表达式
-    # 匹配: time_xxx uses 123.45 ms
     pattern_uses = re.compile(r'(time_\w+)\s+uses\s+([\d\.]+)\s+ms')
-    # 匹配: time_xxx is 123.45 (例如 time_batch_query)
     pattern_is = re.compile(r'(time_\w+)\s+is\s+([\d\.]+)')
-    # 匹配: num_bytes_B: 12345
     pattern_size_colon = re.compile(r'(num_bytes_B):\s+(\d+)')
-    # 匹配: size_of_xxx is 12345
     pattern_size_is = re.compile(r'(size_of_\w+)\s+is\s+(\d+)')
 
     lines = log_content.splitlines()
@@ -97,13 +121,11 @@ def save_report(metrics, output_file):
     
     output_lines.append("\n[1] Key Time Metrics (Summed for Batch)")
     output_lines.append("-" * 40)
-    # 打印累加的时间
     for k, v in sum_times.items():
         output_lines.append(f"{k:<30} : {v:.4f} ms")
     
     output_lines.append("\n[2] Single Step Times")
     output_lines.append("-" * 40)
-    # 打印一些关键的单次时间 (你可以根据需要添加更多)
     keys_to_show = [
         "time_set_constants", "time_encode_db", 
         "time_batch_query", "time_decode_respond"
@@ -117,13 +139,22 @@ def save_report(metrics, output_file):
     output_lines.append("\n[3] Data Sizes")
     output_lines.append("-" * 40)
     for k, v in sizes.items():
-        # 自动转换可读性更强的单位 (MB/KB)
         readable = f"{v} bytes"
         if v > 1024*1024:
             readable += f" (~{v/1024/1024:.2f} MB)"
         elif v > 1024:
             readable += f" (~{v/1024:.2f} KB)"
         output_lines.append(f"{k:<30} : {readable}")
+
+    # 自动创建父目录 (防止 benchmark_results 文件夹不存在报错)
+    output_dir = os.path.dirname(output_file)
+    if output_dir and not os.path.exists(output_dir):
+        try:
+            os.makedirs(output_dir)
+            print(f"\n[Info] Created directory: {output_dir}")
+        except OSError as e:
+            print(f"Error creating directory {output_dir}: {e}")
+            return
 
     # 写入文件
     try:
@@ -136,12 +167,12 @@ def save_report(metrics, output_file):
 if __name__ == "__main__":
     # 命令行参数处理
     parser = argparse.ArgumentParser(description="Run Spiral experiment and parse logs.")
-    parser.add_argument("-o", "--output", type=str, default="experiment_result.txt", 
-                        help="Path to save the result report (default: experiment_result.txt)")
+    parser.add_argument("-o", "--output", type=str, default="./benchmark_results/batch_log.txt", 
+                        help="Path to save the result report (default: ./benchmark_results/batch_log.txt)")
     
     args = parser.parse_args()
 
-    # 1. 运行命令
+    # 1. 运行命令 (现在会实时打印了)
     log_output = run_spiral_command()
     
     # 2. 解析数据

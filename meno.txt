@@ -1,0 +1,5 @@
+nohup python3 -u benchmark.py > test_single.log 2>&1 &
+tail -f test_single.log
+
+nohup python -u test_batch.py > test_batch.log 2>&1 &
+tail -f test_batch.log

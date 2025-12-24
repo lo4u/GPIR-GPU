@@ -14,11 +14,11 @@ COMMAND = ["./spiral", "12", "8", "45","--single"]
 RUN_TIMES = 10 
 
 # 3. 【新功能】文件存放目录 (可以是相对路径 "./results"，也可以是绝对路径 "/home/user/data")
-OUTPUT_DIR = "/app/benchmark_results" 
+OUTPUT_DIR = "./benchmark_results" 
 
 # 4. 文件名
-LOG_FILENAME = "benchmark_raw_log.txt"   # 日志文件名
-CSV_FILENAME = "benchmark_data.csv"      # 表格文件名
+LOG_FILENAME = "single_log.txt"   # 日志文件名
+CSV_FILENAME = "single_data.csv"      # 表格文件名
 
 # ===========================================
 

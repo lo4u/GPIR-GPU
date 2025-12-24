@@ -971,6 +971,7 @@ void test_batch_pir_with_pbc_okvs_gpu(
     std::vector<MatPoly> rs(server_A.handles.size());
     size_t hLen = server_A.handles.size();
     for (size_t i = 0 ; i < hLen ; i++) {
+        printf("Processing the %ld-th sub-query...\n", i);
         reBuildDB(
             server_A.handles[i].database,
             godSizes[i].num_expansions,
