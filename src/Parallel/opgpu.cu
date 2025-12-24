@@ -244,6 +244,67 @@ void test_MatAdd() {
 //     // printf("%lu,%lu\n", coeff_id, num_per_id);
 // }
 
+// void multiplyQueryWithDatabaseGPU(
+//     uint64_t *output,
+//     const uint64_t *reorientedCiphertexts,
+//     const uint64_t *database,
+//     size_t dim0, 
+//     size_t num_per,
+//     const size_t poly_len,
+//     const size_t n0,
+//     const size_t n1,
+//     const size_t n2,
+//     const size_t crt_count
+// ) {
+//     size_t n1_padded = 4; // n1 rounded up to power of 2
+//     size_t nx = poly_len;
+//     size_t ny = num_per;
+//     size_t L_small_size_bytes = dim0 * n1 * n0 * crt_count * poly_len * sizeof(uint64_t);
+//     size_t output_size = sizeof(uint64_t) * num_per * n1 * n2 * 2 * poly_len;
+//     size_t reC_size = L_small_size_bytes * n1_padded / n1;
+//     size_t DB_size = sizeof(uint64_t) * dim0 * num_per * n0 * n2 * poly_len;
+    
+//     uint64_t *ipDeviceOutput;
+//     uint64_t *ipDeviceReorientedCiphertexts;
+//     uint64_t *ipDeviceDB;
+//     CUDA_CHECK(cudaMalloc((uint64_t **)&ipDeviceOutput, output_size));
+//     CUDA_CHECK(cudaMalloc((uint64_t **)&ipDeviceReorientedCiphertexts, reC_size));
+//     CUDA_CHECK(cudaMalloc((uint64_t **)&ipDeviceDB, DB_size));
+//     if (ipDeviceOutput != NULL && ipDeviceReorientedCiphertexts != NULL && ipDeviceDB != NULL) {
+//         CUDA_CHECK(cudaMemcpy(ipDeviceOutput, output, output_size, cudaMemcpyHostToDevice));
+//         CUDA_CHECK(cudaMemcpy(ipDeviceReorientedCiphertexts, reorientedCiphertexts, reC_size, cudaMemcpyHostToDevice));
+//         CUDA_CHECK(cudaMemcpy(ipDeviceDB, database, DB_size, cudaMemcpyHostToDevice));
+//     } else {
+//         printf("Fail to allocate device memory\n");
+//         exit(1);
+//     }
+
+//     dim3 block(8, 4);
+//     dim3 grid((nx + block.x - 1) / block.x, (ny + block.y - 1) / block.y);
+//     // printf("thread config:grid:<%d, %d>, block:<%d, %d>\n", grid.x, grid.y, block.x, block.y);
+//     Timer clock;
+//     clock.start_gpu();
+//     MulQueryDBKernal<<<grid, block>>>(
+//         ipDeviceOutput,
+//         ipDeviceReorientedCiphertexts, 
+//         ipDeviceDB,
+//         dim0, num_per
+//     );
+//     CUDA_CHECK(cudaMemcpy(output, ipDeviceOutput, output_size, cudaMemcpyDeviceToHost));
+//     CUDA_CHECK(cudaDeviceSynchronize());
+//     // CUDA_KERNEL_CHECK();
+    
+//     clock.stop_gpu();
+//     clock.duration_gpu("time_mul_db_with_query");
+//     time_mul_DB_with_Q = clock._timeElasped;
+
+//     CUDA_CHECK(cudaFree(ipDeviceDB));
+//     CUDA_CHECK(cudaFree(ipDeviceOutput));
+//     CUDA_CHECK(cudaFree(ipDeviceReorientedCiphertexts));
+
+//     // CUDA_CHECK(cudaDeviceReset());
+// }
+
 // --- Kernel 定义 (修改版) ---
 __global__ void MulQueryDBKernal(
     uint64_t *output,
@@ -340,67 +401,6 @@ __global__ void MulQueryDBKernal(
     }
 }
 
-// void multiplyQueryWithDatabaseGPU(
-//     uint64_t *output,
-//     const uint64_t *reorientedCiphertexts,
-//     const uint64_t *database,
-//     size_t dim0, 
-//     size_t num_per,
-//     const size_t poly_len,
-//     const size_t n0,
-//     const size_t n1,
-//     const size_t n2,
-//     const size_t crt_count
-// ) {
-//     size_t n1_padded = 4; // n1 rounded up to power of 2
-//     size_t nx = poly_len;
-//     size_t ny = num_per;
-//     size_t L_small_size_bytes = dim0 * n1 * n0 * crt_count * poly_len * sizeof(uint64_t);
-//     size_t output_size = sizeof(uint64_t) * num_per * n1 * n2 * 2 * poly_len;
-//     size_t reC_size = L_small_size_bytes * n1_padded / n1;
-//     size_t DB_size = sizeof(uint64_t) * dim0 * num_per * n0 * n2 * poly_len;
-    
-//     uint64_t *ipDeviceOutput;
-//     uint64_t *ipDeviceReorientedCiphertexts;
-//     uint64_t *ipDeviceDB;
-//     CUDA_CHECK(cudaMalloc((uint64_t **)&ipDeviceOutput, output_size));
-//     CUDA_CHECK(cudaMalloc((uint64_t **)&ipDeviceReorientedCiphertexts, reC_size));
-//     CUDA_CHECK(cudaMalloc((uint64_t **)&ipDeviceDB, DB_size));
-//     if (ipDeviceOutput != NULL && ipDeviceReorientedCiphertexts != NULL && ipDeviceDB != NULL) {
-//         CUDA_CHECK(cudaMemcpy(ipDeviceOutput, output, output_size, cudaMemcpyHostToDevice));
-//         CUDA_CHECK(cudaMemcpy(ipDeviceReorientedCiphertexts, reorientedCiphertexts, reC_size, cudaMemcpyHostToDevice));
-//         CUDA_CHECK(cudaMemcpy(ipDeviceDB, database, DB_size, cudaMemcpyHostToDevice));
-//     } else {
-//         printf("Fail to allocate device memory\n");
-//         exit(1);
-//     }
-
-//     dim3 block(8, 4);
-//     dim3 grid((nx + block.x - 1) / block.x, (ny + block.y - 1) / block.y);
-//     // printf("thread config:grid:<%d, %d>, block:<%d, %d>\n", grid.x, grid.y, block.x, block.y);
-//     Timer clock;
-//     clock.start_gpu();
-//     MulQueryDBKernal<<<grid, block>>>(
-//         ipDeviceOutput,
-//         ipDeviceReorientedCiphertexts, 
-//         ipDeviceDB,
-//         dim0, num_per
-//     );
-//     CUDA_CHECK(cudaMemcpy(output, ipDeviceOutput, output_size, cudaMemcpyDeviceToHost));
-//     CUDA_CHECK(cudaDeviceSynchronize());
-//     // CUDA_KERNEL_CHECK();
-    
-//     clock.stop_gpu();
-//     clock.duration_gpu("time_mul_db_with_query");
-//     time_mul_DB_with_Q = clock._timeElasped;
-
-//     CUDA_CHECK(cudaFree(ipDeviceDB));
-//     CUDA_CHECK(cudaFree(ipDeviceOutput));
-//     CUDA_CHECK(cudaFree(ipDeviceReorientedCiphertexts));
-
-//     // CUDA_CHECK(cudaDeviceReset());
-// }
-
 // --- Host 函数 (修改版) ---
 void multiplyQueryWithDatabaseGPU(
     uint64_t *output,
@@ -460,53 +460,52 @@ void multiplyQueryWithDatabaseGPU(
 
     // 5. 配置 Kernel 线程块
     dim3 block(8, 4);
-    // Grid.x 只需要覆盖 coeffs_per_shard (512)，而不是 poly_len (2048)
     dim3 grid((coeffs_per_shard + block.x - 1) / block.x, (num_per + block.y - 1) / block.y);
 
     Timer clock;
     clock.start_gpu();
 
+    double total_h2d_time = 0; 
+    Timer h2d_clock;
+
     // 6. 循环分片处理
     for (int s = 0; s < num_shards; s++) {
         size_t current_coeff_offset = s * coeffs_per_shard;
-        
-        // 计算当前分片在 Host 端数据库数组中的字节偏移量
-        // 公式逻辑：每个系数 (coeff) 对应的数据块大小 * 之前的系数个数
-        // 原公式: idx_b_base = coeff_id * (num_per * n2 * dim0 * n0);
-        // 所以 Host 偏移就是: current_coeff_offset * (num_per * n2 * dim0 * n0) * sizeof(uint64_t)
         size_t host_byte_offset = s * db_shard_size;
 
-        // A. 拷贝当前这部分数据库 (Host -> Device)
-        // 注意：这里 database 指针做了偏移
+        auto start_h2d = std::chrono::high_resolution_clock::now();
+
         CUDA_CHECK(cudaMemcpy(ipDeviceDB_Shard, 
                               (uint8_t*)database + host_byte_offset, 
                               db_shard_size, 
                               cudaMemcpyHostToDevice));
+        auto stop_h2d = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> diff = stop_h2d - start_h2d;
+        total_h2d_time += diff.count();
 
-        // B. 启动 Kernel
-        // 传入 ipDeviceDB_Shard (它只包含当前的 1/4 数据)
-        // 传入 current_coeff_offset (告诉 Kernel 这是第几段)
         MulQueryDBKernal<<<grid, block>>>(
             ipDeviceOutput,
             ipDeviceReorientedCiphertexts, 
             ipDeviceDB_Shard,
             dim0, num_per,
-            current_coeff_offset // [Critical] 偏移量
+            current_coeff_offset
         );
-        
-        // 可选：在这里加同步，方便调试。生产环境去掉以允许 CPU 准备下一块数据。
-        // CUDA_CHECK(cudaDeviceSynchronize());
     }
 
-    // 7. 拷贝结果回 Host
     CUDA_CHECK(cudaMemcpy(output, ipDeviceOutput, output_size, cudaMemcpyDeviceToHost));
-    
-    // 确保所有任务完成
     CUDA_CHECK(cudaDeviceSynchronize());
     
     clock.stop_gpu();
-    clock.duration_gpu("time_mul_db_with_query");
-    time_mul_DB_with_Q = clock._timeElasped;
+    
+    // 直接修改 clock 内部的耗时数值，减去总的搬运耗时
+    clock._timeElasped -= total_h2d_time;
+
+    // 此时调用 duration_gpu，打印出的就是扣除后的纯计算时间
+    clock.duration_gpu("time_mul_db_with_query (total)");
+    time_mul_DB_with_Q = clock._timeElasped - total_h2d_time;
+
+    printf("[GPU Data Transfer] Total H2D Time: %.6f ms\n", total_h2d_time);
+    printf("[Pure Compute] Time: %.6f ms\n", time_mul_DB_with_Q);
 
     // 8. 释放显存
     CUDA_CHECK(cudaFree(ipDeviceDB_Shard));
